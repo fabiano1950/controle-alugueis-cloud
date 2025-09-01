@@ -9,13 +9,43 @@ from datetime import datetime, timedelta
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
-# Configuração do Google Drive
+import os
+import json
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
+from io import BytesIO
+import os
+
+# Configuração do Google Drive usando Secrets
 SCOPES = ['https://www.googleapis.com/auth/drive']
-CREDS_FILE = 'credentials/service-account-credentials.json'  # Caminho para o arquivo JSON da conta de serviço
-if not os.path.exists(CREDS_FILE):
-    raise FileNotFoundError(f"O arquivo {CREDS_FILE} não foi encontrado. Verifique o caminho.")
-creds = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
+creds_dict = json.loads(os.getenv("GOOGLE_CREDENTIALS"))
+if not creds_dict:
+    raise ValueError("O segredo GOOGLE_CREDENTIALS não foi encontrado. Verifique as configurações no Streamlit Cloud.")
+creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
 drive_service = build('drive', 'v3', credentials=creds)
+
+# IDs dos arquivos no Google Drive
+DATA_FILE_ID = 'SEU_ID_AQUI'  # Substitua pelo ID do financas_alugueis.csv
+VACANCY_FILE_ID = 'SEU_ID_AQUI'  # Substitua pelo ID do vacancia_alugueis.csv
+
+# Função save_vacancy
+def save_vacancy(df, file_id):
+    output = BytesIO()
+    df.to_csv(output, index=False, encoding='utf-8-sig')
+    output.seek(0)
+    media = MediaFileUpload(
+        'temp.csv',
+        mimetype='text/csv',
+        resumable=True,
+        data=output.getvalue()
+    )
+    drive_service.files().update(
+        fileId=file_id,
+        media_body=media
+    ).execute()
+    if os.path.exists('temp.csv'):
+        os.remove('temp.csv')
 
 # IDs dos arquivos no Google Drive
 DATA_FILE_ID = '1E7gNn-XNmZ2dux3ubJA2mkttvfsNZQnp'  # ID do financas_alugueis.csv
