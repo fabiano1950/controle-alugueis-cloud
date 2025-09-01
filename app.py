@@ -1,51 +1,31 @@
 import streamlit as st
 import pandas as pd
 import os
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload, MediaInMemoryUpload
-from io import BytesIO
-from datetime import datetime, timedelta
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-
-import os
 import json
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from io import BytesIO
-import os
+from datetime import datetime, timedelta
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 # Configuração do Google Drive usando Secrets
 SCOPES = ['https://www.googleapis.com/auth/drive']
-creds_dict = json.loads(os.getenv("GOOGLE_CREDENTIALS"))
-if not creds_dict:
-    raise ValueError("O segredo GOOGLE_CREDENTIALS não foi encontrado. Verifique as configurações no Streamlit Cloud.")
+google_credentials = os.getenv("GOOGLE_CREDENTIALS")
+if not google_credentials:
+    st.error("O segredo GOOGLE_CREDENTIALS não foi encontrado no ambiente. Verifique as configurações no Streamlit Cloud.")
+    raise ValueError("Segredo GOOGLE_CREDENTIALS ausente.")
+try:
+    creds_dict = json.loads(google_credentials)
+except json.JSONDecodeError as e:
+    st.error(f"Erro ao decodificar o segredo GOOGLE_CREDENTIALS: {str(e)}. Verifique se o JSON está válido.")
+    raise ValueError(f"JSON inválido no segredo: {str(e)}")
+except TypeError as e:
+    st.error(f"Tipo inválido para GOOGLE_CREDENTIALS: {str(e)}. O segredo deve ser uma string JSON.")
+    raise ValueError(f"Tipo inválido: {str(e)}")
 creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
 drive_service = build('drive', 'v3', credentials=creds)
-
-# IDs dos arquivos no Google Drive
-DATA_FILE_ID = 'SEU_ID_AQUI'  # Substitua pelo ID do financas_alugueis.csv
-VACANCY_FILE_ID = 'SEU_ID_AQUI'  # Substitua pelo ID do vacancia_alugueis.csv
-
-# Função save_vacancy
-def save_vacancy(df, file_id):
-    output = BytesIO()
-    df.to_csv(output, index=False, encoding='utf-8-sig')
-    output.seek(0)
-    media = MediaFileUpload(
-        'temp.csv',
-        mimetype='text/csv',
-        resumable=True,
-        data=output.getvalue()
-    )
-    drive_service.files().update(
-        fileId=file_id,
-        media_body=media
-    ).execute()
-    if os.path.exists('temp.csv'):
-        os.remove('temp.csv')
 
 # IDs dos arquivos no Google Drive
 DATA_FILE_ID = '1E7gNn-XNmZ2dux3ubJA2mkttvfsNZQnp'  # ID do financas_alugueis.csv
@@ -77,11 +57,10 @@ def load_vacancy():
     fh.seek(0)
     df = pd.read_csv(fh) if fh.getvalue() else pd.DataFrame({
         "Apartamento": [f"Apto {i}" for i in range(1, 17)],
-        "Data": [datetime.now().date()] * 16,
-        "Status": ["Ocupado"] * 16
+        "Data_Atualizacao": [datetime.now().date()] * 16,
+        "Ocupado": ["True"] * 16  # Usando string "True" para compatibilidade com CSV
     })
-    df["Ocupado"] = df["Status"].str.lower() == "ocupado"
-    df["Data_Atualizacao"] = pd.to_datetime(df["Data"]).dt.date
+    df["Ocupado"] = df["Ocupado"].astype(bool)  # Converte para booleano
     return df[["Apartamento", "Ocupado", "Data_Atualizacao"]]
 
 # Função para salvar dados no Google Drive
@@ -95,17 +74,18 @@ def save_data(df, file_id):
         df_to_save = df
     df_to_save.to_csv(output, index=False, encoding='utf-8-sig')
     output.seek(0)
-    
-    # Fazer upload usando MediaInMemoryUpload
-    media = MediaInMemoryUpload(
-        output.getvalue(),
+    media = MediaFileUpload(
+        'temp.csv',
         mimetype='text/csv',
-        resumable=True
+        resumable=True,
+        data=output.getvalue()
     )
     drive_service.files().update(
         fileId=file_id,
         media_body=media
     ).execute()
+    if os.path.exists('temp.csv'):
+        os.remove('temp.csv')
 
 # Função para gerar CSV com subtotais e totais
 def generate_summary_csv(df):
@@ -131,8 +111,7 @@ def generate_summary_csv(df):
         "Categoria": "",
         "Subtotal": total
     }])
-    summary_df = pd.concat([summary_df, total_row], ignore_index=True)
-    return summary_df.to_csv(sep=",", index=False, encoding='utf-8-sig')
+    return pd.concat([summary_df, total_row], ignore_index=True).to_csv(sep=",", index=False, encoding='utf-8-sig')
 
 # Função para gerar Excel com todos os registros
 def generate_full_records_excel(df):
@@ -141,7 +120,7 @@ def generate_full_records_excel(df):
     output.seek(0)
     return output
 
-# Função para gerar PDF
+# Função para gerar PDF (mantida como estava, apenas ajustada para compatibilidade)
 def generate_pdf_report(df, vacancy_df, filtro_mes=None, filtro_ano=None, filtro_apto=None):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
@@ -194,10 +173,9 @@ def generate_pdf_report(df, vacancy_df, filtro_mes=None, filtro_ano=None, filtro
     buffer.seek(0)
     return buffer
 
-# Interface do app
+# Interface do app (mantida como estava, com ajustes menores)
 st.title("Controle de Aluguéis - 16 Apartamentos")
 
-# Estilização dos botões
 st.markdown(
     """
     <style>
@@ -270,9 +248,9 @@ with st.form("entrada_form"):
         })
         df = pd.concat([df, new_entry], ignore_index=True)
         save_data(df, DATA_FILE_ID)
-        st.session_state.form_state["categoria"] = categoria  # Atualiza a categoria no estado
+        st.session_state.form_state["categoria"] = categoria
         st.success("Registro adicionado com sucesso!")
-        st.rerun()  # Atualiza a interface automaticamente
+        st.rerun()
 
 # Formulário para gerenciar vacância
 st.subheader("Gerenciar Vacância")
@@ -299,9 +277,9 @@ with st.form("vacancia_form", clear_on_submit=True):
         save_data(vacancy_df, VACANCY_FILE_ID)
         vacancy_df = load_vacancy()
         st.success(f"Status de {apartamento_vacancia} atualizado!")
-        st.rerun()  # Atualiza a interface automaticamente
+        st.rerun()
 
-# Gerenciar lançamentos (editar/excluir)
+# Gerenciar lançamentos
 st.subheader("Editar ou Excluir Lançamentos")
 st.write("Clique em 'Atualizar Lista' após alterações para atualizar a tabela.")
 if not df_filtrado.empty:
@@ -355,7 +333,7 @@ if not df_filtrado.empty:
 if st.button("Atualizar Lista"):
     st.rerun()
 
-# Notificações de vacância prolongada
+# Notificações
 st.subheader("Notificações")
 vagos_prolongados = vacancy_df[
     (vacancy_df["Ocupado"] == False) &
