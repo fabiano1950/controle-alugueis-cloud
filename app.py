@@ -328,17 +328,19 @@ if not df_filtrado.empty:
                 submit_edit = st.form_submit_button("Salvar Alterações")
 
                 if submit_edit:
-                    # Atualiza o DataFrame com os novos valores
-                    print(df.iloc[idx])
-                    df.iloc[idx] = {
-                        "Data": edit_data,
+                    # Converte edit_data para string no formato do CSV
+                    edit_data_str = edit_data.strftime('%Y-%m-%d')
+                    # Cria uma série pandas com os novos valores
+                    new_row = pd.Series({
+                        "Data": edit_data_str,
                         "Apartamento": edit_apartamento,
                         "Descrição": edit_descricao,
                         "Tipo": edit_tipo,
                         "Categoria": edit_categoria,
                         "Valor": edit_valor
-                    }
-                    print(df.iloc[idx])
+                    })
+                    # Atualiza o DataFrame com a série
+                    df.iloc[idx] = new_row
                     # Salva as alterações no Google Drive
                     save_data(df, DATA_FILE_ID)
                     st.success(f"Lançamento {idx} atualizado com sucesso!")
