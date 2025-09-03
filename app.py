@@ -329,6 +329,7 @@ if not df_filtrado.empty:
 
                 if submit_edit:
                     # Atualiza o DataFrame com os novos valores
+                    print(df.iloc[idx])
                     df.iloc[idx] = {
                         "Data": edit_data,
                         "Apartamento": edit_apartamento,
@@ -337,6 +338,7 @@ if not df_filtrado.empty:
                         "Categoria": edit_categoria,
                         "Valor": edit_valor
                     }
+                    print(df.iloc[idx])
                     # Salva as alterações no Google Drive
                     save_data(df, DATA_FILE_ID)
                     st.success(f"Lançamento {idx} atualizado com sucesso!")
