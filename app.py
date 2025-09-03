@@ -328,13 +328,17 @@ if not df_filtrado.empty:
                 submit_edit = st.form_submit_button("Salvar Alterações")
 
                 if submit_edit:
+                    # Imprime os valores antes da atualização para depuração
+                    st.write(f"Antes da atualização - Índice {idx}: {df.loc[idx].to_dict()}")
                     # Atualiza os valores no DataFrame
-                    df.at[idx, "Data"] = edit_data.strftime('%Y-%m-%d')
-                    df.at[idx, "Apartamento"] = edit_apartamento
-                    df.at[idx, "Descrição"] = edit_descricao
-                    df.at[idx, "Tipo"] = edit_tipo
-                    df.at[idx, "Categoria"] = edit_categoria
-                    df.at[idx, "Valor"] = edit_valor
+                    df.loc[idx, "Data"] = edit_data.strftime('%Y-%m-%d')
+                    df.loc[idx, "Apartamento"] = edit_apartamento
+                    df.loc[idx, "Descrição"] = edit_descricao
+                    df.loc[idx, "Tipo"] = edit_tipo
+                    df.loc[idx, "Categoria"] = edit_categoria
+                    df.loc[idx, "Valor"] = edit_valor
+                    # Imprime os valores após a atualização para depuração
+                    st.write(f"Depois da atualização - Índice {idx}: {df.loc[idx].to_dict()}")
                     # Salva as alterações no Google Drive
                     save_data(df, DATA_FILE_ID)
                     st.success(f"Lançamento {idx} atualizado com sucesso!")
