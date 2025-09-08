@@ -58,21 +58,20 @@ def load_vacancy():
     fh.seek(0)
     if fh.getvalue():
         df = pd.read_csv(fh)
-        # Verifica se a coluna "Ocupado" existe, senão usa "Status" como fallback
         if "Ocupado" not in df.columns:
             if "Status" in df.columns:
                 df["Ocupado"] = df["Status"].str.lower() == "ocupado"
             else:
                 raise KeyError("O arquivo vacancia_alugueis.csv não contém as colunas 'Ocupado' ou 'Status'. Verifique o CSV.")
         else:
-            df["Ocupado"] = df["Ocupado"].astype(bool)  # Garante que seja booleano
+            df["Ocupado"] = df["Ocupado"].astype(bool)
     else:
         df = pd.DataFrame({
             "Apartamento": [f"Apto {i}" for i in range(1, 17)],
             "Data": [datetime.now().date()] * 16,
             "Ocupado": [True] * 16
         })
-    df["Ocupado"] = df["Ocupado"].astype(bool)  # Garante que seja booleano
+    df["Ocupado"] = df["Ocupado"].astype(bool)
     return df[["Apartamento", "Ocupado", "Data"]]
 
 # Função para salvar dados no Google Drive
@@ -80,21 +79,13 @@ def save_data(df, file_id):
     output = BytesIO()
     if "Ocupado" in df.columns:
         df["Status"] = df["Ocupado"].apply(lambda x: "Ocupado" if x else "Vago")
-        df["Data"] = df["Data"]
         df_to_save = df[["Data", "Apartamento", "Status"]]
     else:
         df_to_save = df
     df_to_save.to_csv(output, index=False, encoding='utf-8-sig')
     output.seek(0)
-    media = MediaInMemoryUpload(
-        output.getvalue(),
-        mimetype='text/csv',
-        resumable=True
-    )
-    drive_service.files().update(
-        fileId=file_id,
-        media_body=media
-    ).execute()
+    media = MediaInMemoryUpload(output.getvalue(), mimetype='text/csv', resumable=True)
+    drive_service.files().update(fileId=file_id, media_body=media).execute()
 
 # Função para gerar CSV com subtotais e totais
 def generate_summary_csv(df):
@@ -106,20 +97,10 @@ def generate_summary_csv(df):
                 tipo_data = apto_data[apto_data["Tipo"] == tipo]
                 for cat in tipo_data["Categoria"].unique():
                     subtotal = tipo_data[tipo_data["Categoria"] == cat]["Valor"].sum()
-                    summary.append({
-                        "Apartamento": apto,
-                        "Tipo": tipo,
-                        "Categoria": cat,
-                        "Subtotal": subtotal
-                    })
+                    summary.append({"Apartamento": apto, "Tipo": tipo, "Categoria": cat, "Subtotal": subtotal})
     summary_df = pd.DataFrame(summary)
     total = df[df["Tipo"] == "Receita"]["Valor"].sum() - df[df["Tipo"] == "Despesa"]["Valor"].sum()
-    total_row = pd.DataFrame([{
-        "Apartamento": "Total Geral",
-        "Tipo": "",
-        "Categoria": "",
-        "Subtotal": total
-    }])
+    total_row = pd.DataFrame([{"Apartamento": "Total Geral", "Tipo": "", "Categoria": "", "Subtotal": total}])
     return pd.concat([summary_df, total_row], ignore_index=True).to_csv(sep=",", index=False, encoding='utf-8-sig')
 
 # Função para gerar Excel com todos os registros
@@ -162,16 +143,7 @@ def generate_pdf_report(df, vacancy_df, filtro_mes=None, filtro_ano=None, filtro
 
     c.drawString(50, y, "Resumo por Apartamento:")
     y -= 20
-    for _, row in pd.DataFrame([
-        {
-            "Apartamento": apto,
-            "Receitas": df[(df["Apartamento"] == apto) & (df["Tipo"] == "Receita")]["Valor"].sum(),
-            "Despesas": df[(df["Apartamento"] == apto) & (df["Tipo"] == "Despesa")]["Valor"].sum(),
-            "Saldo": df[(df["Apartamento"] == apto) & (df["Tipo"] == "Receita")]["Valor"].sum() -
-                     df[(df["Apartamento"] == apto) & (df["Tipo"] == "Despesa")]["Valor"].sum(),
-            "Status": "Ocupado" if not vacancy_df[vacancy_df["Apartamento"] == apto].empty and vacancy_df[vacancy_df["Apartamento"] == apto]["Ocupado"].iloc[0] else "Vago"
-        } for apto in [f"Apto {i}" for i in range(1, 17)]
-    ]).iterrows():
+    for _, row in pd.DataFrame([{"Apartamento": apto, "Receitas": df[(df["Apartamento"] == apto) & (df["Tipo"] == "Receita")]["Valor"].sum(), "Despesas": df[(df["Apartamento"] == apto) & (df["Tipo"] == "Despesa")]["Valor"].sum(), "Saldo": df[(df["Apartamento"] == apto) & (df["Tipo"] == "Receita")]["Valor"].sum() - df[(df["Apartamento"] == apto) & (df["Tipo"] == "Despesa")]["Valor"].sum(), "Status": "Ocupado" if not vacancy_df[vacancy_df["Apartamento"] == apto].empty and vacancy_df[vacancy_df["Apartamento"] == apto]["Ocupado"].iloc[0] else "Vago"} for apto in [f"Apto {i}" for i in range(1, 17)]]).iterrows():
         c.drawString(50, y, f"{row['Apartamento']}: Receitas R${row['Receitas']:.2f}, Despesas R${row['Despesas']:.2f}, {row['Status']}")
         y -= 20
         if y < 50:
@@ -328,19 +300,17 @@ if not df_filtrado.empty:
                 submit_edit = st.form_submit_button("Salvar Alterações")
 
                 if submit_edit:
-                    # Imprime os valores antes da atualização para depuração
-                    st.write(f"Antes da atualização - Índice {idx}: {df.loc[idx].to_dict()}")
-                    # Atualiza os valores no DataFrame
+                    # Atualiza o DataFrame com os novos valores
                     df.loc[idx, "Data"] = edit_data.strftime('%Y-%m-%d')
                     df.loc[idx, "Apartamento"] = edit_apartamento
                     df.loc[idx, "Descrição"] = edit_descricao
                     df.loc[idx, "Tipo"] = edit_tipo
                     df.loc[idx, "Categoria"] = edit_categoria
                     df.loc[idx, "Valor"] = edit_valor
-                    # Imprime os valores após a atualização para depuração
-                    st.write(f"Depois da atualização - Índice {idx}: {df.loc[idx].to_dict()}")
-                    # Salva as alterações no Google Drive
+                    # Salva as alterações imediatamente
                     save_data(df, DATA_FILE_ID)
+                    # Recarrega os dados para garantir consistência
+                    df = load_data()
                     st.success(f"Lançamento {idx} atualizado com sucesso!")
                     st.rerun()
 
