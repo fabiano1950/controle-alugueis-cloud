@@ -267,6 +267,8 @@ st.write("Clique em 'Atualizar Lista' após alterações para atualizar a tabela
 if not df_filtrado.empty:
     edit_buttons = []
     delete_buttons = []
+    # Mapear índices filtrados para índices globais
+    idx_map = {i: df.index[df_filtrado.index[i]] for i in range(len(df_filtrado))}
     for idx, row in df_filtrado.iterrows():
         col1, col2, col3 = st.columns([4, 1, 1])
         with col1:
@@ -280,14 +282,16 @@ if not df_filtrado.empty:
 
     if delete_buttons:
         for idx in delete_buttons:
-            df = df.drop(idx).reset_index(drop=True)
+            global_idx = idx_map[idx]
+            df = df.drop(global_idx).reset_index(drop=True)
             save_data(df, DATA_FILE_ID)
             st.success(f"Lançamento {idx} excluído com sucesso!")
         st.rerun()
 
     if edit_buttons:
         for idx in edit_buttons:
-            lancamento = df.iloc[idx]
+            global_idx = idx_map[idx]
+            lancamento = df.loc[global_idx]
             with st.form(f"editar_form_{idx}", clear_on_submit=True):
                 edit_data = st.date_input("Data", value=pd.to_datetime(lancamento["Data"]).date())
                 edit_apartamento = st.selectbox("Apartamento", ["Comum"] + [f"Apto {i}" for i in range(1, 17)], index=([f"Apto {i}" for i in range(1, 17)] + ["Comum"]).index(lancamento["Apartamento"]))
@@ -300,16 +304,16 @@ if not df_filtrado.empty:
                 submit_edit = st.form_submit_button("Salvar Alterações")
 
                 if submit_edit:
-                    # Atualiza o DataFrame com os novos valores
-                    df.loc[idx, "Data"] = edit_data.strftime('%Y-%m-%d')
-                    df.loc[idx, "Apartamento"] = edit_apartamento
-                    df.loc[idx, "Descrição"] = edit_descricao
-                    df.loc[idx, "Tipo"] = edit_tipo
-                    df.loc[idx, "Categoria"] = edit_categoria
-                    df.loc[idx, "Valor"] = edit_valor
-                    # Salva as alterações imediatamente
+                    # Atualiza o DataFrame com o índice global
+                    df.loc[global_idx, "Data"] = edit_data.strftime('%Y-%m-%d')
+                    df.loc[global_idx, "Apartamento"] = edit_apartamento
+                    df.loc[global_idx, "Descrição"] = edit_descricao
+                    df.loc[global_idx, "Tipo"] = edit_tipo
+                    df.loc[global_idx, "Categoria"] = edit_categoria
+                    df.loc[global_idx, "Valor"] = edit_valor
+                    # Salva as alterações
                     save_data(df, DATA_FILE_ID)
-                    # Recarrega os dados para garantir consistência
+                    # Recarrega os dados para consistência
                     df = load_data()
                     st.success(f"Lançamento {idx} atualizado com sucesso!")
                     st.rerun()
@@ -357,7 +361,7 @@ if not df_filtrado.empty:
     resumo_df = pd.DataFrame(resumo)
     def highlight_vacant(val):
         return 'background-color: #FFCCCC' if val == "Vago" and isinstance(val, str) else ''
-    styled_df = resumo_df.style.applymap(highlight_vacant, subset=['Status'])
+    styled_df = resumo_df.style.map(highlight_vacant, subset=['Status'])  # Corrigido para .map
     st.dataframe(styled_df)
 
     st.subheader("Gráficos")
