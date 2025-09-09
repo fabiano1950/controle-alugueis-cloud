@@ -267,8 +267,6 @@ st.write("Clique em 'Atualizar Lista' após alterações para atualizar a tabela
 if not df_filtrado.empty:
     edit_buttons = []
     delete_buttons = []
-    # Mapear índices filtrados para índices globais
-    idx_map = {i: df.index[df_filtrado.index[i]] for i in range(len(df_filtrado))}
     for idx, row in df_filtrado.iterrows():
         col1, col2, col3 = st.columns([4, 1, 1])
         with col1:
@@ -282,7 +280,8 @@ if not df_filtrado.empty:
 
     if delete_buttons:
         for idx in delete_buttons:
-            global_idx = idx_map[idx]
+            # Encontra o índice global correspondente
+            global_idx = df.index[df_filtrado.index[idx]]
             df = df.drop(global_idx).reset_index(drop=True)
             save_data(df, DATA_FILE_ID)
             st.success(f"Lançamento {idx} excluído com sucesso!")
@@ -290,7 +289,8 @@ if not df_filtrado.empty:
 
     if edit_buttons:
         for idx in edit_buttons:
-            global_idx = idx_map[idx]
+            # Encontra o índice global correspondente
+            global_idx = df.index[df_filtrado.index[idx]]
             lancamento = df.loc[global_idx]
             with st.form(f"editar_form_{idx}", clear_on_submit=True):
                 edit_data = st.date_input("Data", value=pd.to_datetime(lancamento["Data"]).date())
