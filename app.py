@@ -280,7 +280,6 @@ if not df_filtrado.empty:
 
     if delete_buttons:
         for idx in delete_buttons:
-            # Encontra o índice global correspondente
             global_idx = df.index[df_filtrado.index[idx]]
             df = df.drop(global_idx).reset_index(drop=True)
             save_data(df, DATA_FILE_ID)
@@ -289,7 +288,6 @@ if not df_filtrado.empty:
 
     if edit_buttons:
         for idx in edit_buttons:
-            # Encontra o índice global correspondente
             global_idx = df.index[df_filtrado.index[idx]]
             lancamento = df.loc[global_idx]
             with st.form(f"editar_form_{idx}", clear_on_submit=True):
@@ -311,10 +309,8 @@ if not df_filtrado.empty:
                     df.loc[global_idx, "Tipo"] = edit_tipo
                     df.loc[global_idx, "Categoria"] = edit_categoria
                     df.loc[global_idx, "Valor"] = edit_valor
-                    # Salva as alterações
+                    # Salva as alterações sem recarregar imediatamente
                     save_data(df, DATA_FILE_ID)
-                    # Recarrega os dados para consistência
-                    df = load_data()
                     st.success(f"Lançamento {idx} atualizado com sucesso!")
                     st.rerun()
 
@@ -361,7 +357,7 @@ if not df_filtrado.empty:
     resumo_df = pd.DataFrame(resumo)
     def highlight_vacant(val):
         return 'background-color: #FFCCCC' if val == "Vago" and isinstance(val, str) else ''
-    styled_df = resumo_df.style.map(highlight_vacant, subset=['Status'])  # Corrigido para .map
+    styled_df = resumo_df.style.map(highlight_vacant, subset=['Status'])
     st.dataframe(styled_df)
 
     st.subheader("Gráficos")
