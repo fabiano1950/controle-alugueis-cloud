@@ -302,14 +302,19 @@ if not df_filtrado.empty:
                 submit_edit = st.form_submit_button("Salvar Alterações")
 
                 if submit_edit:
-                    # Atualiza o DataFrame com o índice global
-                    df.loc[global_idx, "Data"] = edit_data.strftime('%Y-%m-%d')
-                    df.loc[global_idx, "Apartamento"] = edit_apartamento
-                    df.loc[global_idx, "Descrição"] = edit_descricao
-                    df.loc[global_idx, "Tipo"] = edit_tipo
-                    df.loc[global_idx, "Categoria"] = edit_categoria
-                    df.loc[global_idx, "Valor"] = edit_valor
-                    # Salva as alterações sem recarregar imediatamente
+                    # Exclui a linha antiga
+                    df = df.drop(global_idx).reset_index(drop=True)
+                    # Adiciona a nova linha com os dados editados
+                    new_entry = pd.DataFrame({
+                        "Data": [edit_data.strftime('%Y-%m-%d')],
+                        "Apartamento": [edit_apartamento],
+                        "Descrição": [edit_descricao],
+                        "Tipo": [edit_tipo],
+                        "Categoria": [edit_categoria],
+                        "Valor": [edit_valor]
+                    })
+                    df = pd.concat([df, new_entry], ignore_index=True)
+                    # Salva as alterações
                     save_data(df, DATA_FILE_ID)
                     st.success(f"Lançamento {idx} atualizado com sucesso!")
                     st.rerun()
